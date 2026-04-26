@@ -1,0 +1,15 @@
+# Root build context for `docker/backend/Dockerfile` (and keeps other builds fast).
+.git
+**/.venv
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.env
+**/.env.*
+**/*.egg-info
+**/npm-debug.log*
+**/.DS_Store

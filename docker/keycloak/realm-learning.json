@@ -1,0 +1,59 @@
+{
+  "realm": "learning",
+  "displayName": "Infra Stack Lab",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "lab-user",
+        "description": "Default lab role",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "learning-spa",
+      "name": "Learning SPA (public, PKCE)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173", "+"],
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "learner",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lab",
+      "lastName": "Learner",
+      "email": "learner@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "learner",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["lab-user"]
+    }
+  ]
+}

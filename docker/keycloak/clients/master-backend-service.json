@@ -1,0 +1,20 @@
+{
+  "clientId": "backend-service",
+  "name": "Backend service (master realm — Admin API)",
+  "description": "Confidential client for your app to call Keycloak Admin REST API (e.g. manage users in realm learning). Import into realm master via Admin Console → Import client. Dev secret: dev-master-backend-service-secret — copy to KEYCLOAK_MASTER_CLIENT_SECRET.",
+  "enabled": true,
+  "publicClient": false,
+  "protocol": "openid-connect",
+  "clientAuthenticatorType": "client-secret",
+  "secret": "dev-master-backend-service-secret",
+  "standardFlowEnabled": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "authorizationServicesEnabled": false,
+  "fullScopeAllowed": true,
+  "frontchannelLogout": false,
+  "attributes": {},
+  "redirectUris": [],
+  "webOrigins": []
+}

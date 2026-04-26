@@ -1,0 +1,94 @@
+# Full stack: Postgres + API + UI (+ Keycloak for Phase C).
+# Run from this directory (lab root), loading devops env from docker/backend:
+#
+#   docker compose --env-file docker/backend/default.env up --build
+# Optional secrets (gitignored): docker/backend/.env.local — loaded into backend container when present.
+#
+# UI: http://localhost:5173
+# API: http://localhost:8000
+# Keycloak admin: http://localhost:8080
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: stack-learning-postgres
+    restart: unless-stopped
+    env_file:
+      - docker/backend/default.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: stack-learning-api
+    restart: unless-stopped
+    env_file:
+      - path: docker/backend/default.env
+        required: true
+      - path: docker/backend/.env.local
+        required: false
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_APP_NAME: ${VITE_APP_NAME}
+        VITE_STAGE: ${VITE_STAGE}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_ENABLE_APP_ROUTE: ${VITE_ENABLE_APP_ROUTE}
+        VITE_AUTH_ENABLED: ${VITE_AUTH_ENABLED}
+        VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID}
+        VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI}
+        VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${VITE_OIDC_POST_LOGOUT_REDIRECT_URI}
+    container_name: stack-learning-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: stack-learning-keycloak
+    command:
+      - start-dev
+      - --http-port=8080
+      - --hostname-strict=false
+      - --import-realm
+    env_file:
+      - docker/backend/default.env
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./docker/keycloak/realm-learning.json:/opt/keycloak/data/import/realm-learning.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
