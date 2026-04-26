@@ -9,6 +9,16 @@ Monorepo layout:
 - `docker/backend` — Backend container build (`Dockerfile`, `startup.sh`)
 - `docker-compose.yml` — Full stack (root)
 
+## CI (GitHub Actions)
+
+On every push and pull request to **`main`**, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs:
+
+- **Backend:** `uv sync --frozen`, Ruff, pytest (`apps/backend`)
+- **Frontend:** `npm ci`, ESLint, production build (`apps/frontend`)
+- **Docker:** `docker build` for `docker/backend/Dockerfile` and `docker/frontend/Dockerfile` (image build verification; no push to a registry yet — that is Phase **F1**/registry work in the roadmap).
+
+**Branch protection (Phase E2, manual in GitHub):** Settings → Branches → add a rule for `main` → require the **CI** workflow to pass before merge, and optionally require a pull request.
+
 ## Documentation
 
 - **[System + Docker Compose concepts](docs/SYSTEM-AND-DOCKER-CONCEPTS.md)** — roles of each service, CORS vs auth, `env_file` vs build args, volumes, healthchecks, and a senior checklist for reading this repo.

@@ -19,6 +19,8 @@
 
 **Execution order (as requested):** front-end first → back-end → Keycloak → Docker → devops/infra/CI-CD → GCP and Kubernetes. Earlier steps stay small and testable; later steps compose them.
 
+**Where this repo is now (high level):** Phases **A–D** and remote **Git** are in place. **Phase F1** is started: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs lint, tests, and Docker image builds on `main` and PRs. **Phase E2** (protected `main` + required checks) and **F2+** (environments, image registry, deploy) are still ahead — follow the sections below.
+
 ---
 
 ## Phase A — Front-end (React) only
