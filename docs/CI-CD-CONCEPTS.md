@@ -24,6 +24,7 @@ Like [SYSTEM-AND-DOCKER-CONCEPTS.md](./SYSTEM-AND-DOCKER-CONCEPTS.md), each topi
    - [6.5 Required checks for this repository](#65-required-checks-for-this-repository)
    - [6.6 Verify and common gotchas](#66-verify-and-common-gotchas)
 7. [What “strong” CI/CD usually adds next](#7-what-strong-cicd-usually-adds-next)
+   - [7.1 GitHub Container Registry (GHCR) — this lab](#71-github-container-registry-ghcr--this-lab)
 8. [Relationship to Docker and “the cluster”](#8-relationship-to-docker-and-the-cluster)
 9. [Glossary](#9-glossary)
 
@@ -312,12 +313,29 @@ Roughly in the order teams adopt them:
 1. **Secrets scanning** — detect committed keys (GitHub Advanced Security or open tools).
 2. **Dependency audit** — `npm audit`, SBOM, Dependabot.
 3. **Image scanning** — scan Docker images for CVEs before deploy.
-4. **Publish images** — tag with **git SHA**, push to **GHCR** or cloud registry.
+4. **Publish images** — tag with **git SHA**, push to **GHCR** or cloud registry. **This repo:** see [§7.1](#71-github-container-registry-ghcr--this-lab).
 5. **Environments** — `test`, `staging`, `production` with **approval gates**.
 6. **Deploy** — Kubernetes, Cloud Run, VMs — using **OIDC to cloud** (no long-lived cloud keys in GitHub).
 7. **Smoke tests after deploy** — hit `/health`, one authenticated path.
 
 Your roadmap (`LEARNING-ROADMAP.md`) maps these to **Phase F** (CI/CD) and **Phase G/H** (GCP + Kubernetes).
+
+### 7.1 GitHub Container Registry (GHCR) — this lab
+
+**In plain terms:** After your **CI** workflow succeeds on a **push** to **`main`**, a second workflow **[`publish-images.yml`](../.github/workflows/publish-images.yml)** builds the same two Docker images again and **uploads** them to **GitHub Container Registry** (`ghcr.io`). Tags include **`latest`** and the **full git commit SHA** so you can pin exactly what was built.
+
+**Professional language:** This is **continuous delivery** of **immutable artifacts**: the SHA tag is the promotion unit; `latest` is a convenience pointer that moves on each merge.
+
+**Why `workflow_run` instead of only `push`?** The publish job starts only after the **`CI`** workflow completes **successfully**, and only when that CI run was triggered by a **`push`** to **`main`** (so a green PR does not publish until it is merged). The checkout uses **`head_sha`** from that CI run so the image matches the tested commit.
+
+**Image names (replace `OWNER` with your GitHub user or org, e.g. `zubair-autometa`):**
+
+- `ghcr.io/OWNER/infra-stack-lab-api:SHA` and `:latest`
+- `ghcr.io/OWNER/infra-stack-lab-frontend:SHA` and `:latest`
+
+**Pull auth:** New packages are often **private**. To pull from your laptop: **Package settings → Manage Actions access** / visibility, or `docker login ghcr.io` with a token that has **`read:packages`**. For public learning demos, you can set each package to **Public** in its settings.
+
+**Not done yet (next slices of F):** deploy those images to a **test** VM or cluster, smoke-test `/health`, and add **GitHub Environments** with optional **approval** before production.
 
 ---
 
