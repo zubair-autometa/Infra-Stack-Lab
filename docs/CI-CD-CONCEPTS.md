@@ -13,6 +13,7 @@ Like [SYSTEM-AND-DOCKER-CONCEPTS.md](./SYSTEM-AND-DOCKER-CONCEPTS.md), each topi
 
 1. [Why CI/CD exists](#1-why-cicd-exists)
 2. [CI vs CD — two different promises](#2-ci-vs-cd--two-different-promises)
+   - [2.1 CD and GHCR — slow walk (beginner)](#21-cd-and-ghcr--slow-walk-beginner)
 3. [Core vocabulary (GitHub Actions)](#3-core-vocabulary-github-actions)
 4. [How a run works end-to-end](#4-how-a-run-works-end-to-end)
 5. [What our `ci.yml` actually does](#5-what-our-ciyml-actually-does)
@@ -24,6 +25,7 @@ Like [SYSTEM-AND-DOCKER-CONCEPTS.md](./SYSTEM-AND-DOCKER-CONCEPTS.md), each topi
    - [6.5 Required checks for this repository](#65-required-checks-for-this-repository)
    - [6.6 Verify and common gotchas](#66-verify-and-common-gotchas)
 7. [What “strong” CI/CD usually adds next](#7-what-strong-cicd-usually-adds-next)
+   - [7.1 GitHub Container Registry (GHCR) — this lab](#71-github-container-registry-ghcr--this-lab)
 8. [Relationship to Docker and “the cluster”](#8-relationship-to-docker-and-the-cluster)
 9. [Glossary](#9-glossary)
 
@@ -50,9 +52,110 @@ CI/CD reduces **lead time** and **change failure rate** (DORA metrics) by automa
 **Where this lab is today**
 
 - **CI:** yes — automated checks in GitHub Actions ([`ci.yml`](../.github/workflows/ci.yml)).
-- **CD:** not wired in this repo yet — no automatic push of images to a registry, no deploy to a VM/Kubernetes environment. That is the **next learning arc** (roadmap Phase F2+).
+- **CD (first slice):** when enabled on `main`, [`publish-images.yml`](../.github/workflows/publish-images.yml) **publishes** Docker images to **GHCR** after CI succeeds on a push to `main` (see [§2.1](#21-cd-and-ghcr--slow-walk-beginner) and [§7.1](#71-github-container-registry-ghcr--this-lab)).
+- **CD (next slices):** deploy those images to a **test** server or **Kubernetes**, smoke-test, approvals — roadmap Phase **F2/F3** and beyond.
 
-So it is normal that your pipeline feels “light”: you have built **integration verification first**, which is the right foundation.
+---
+
+### 2.1 CD and GHCR — slow walk (beginner)
+
+Read this once top-to-bottom; it ties together **CD**, **containers**, **registry**, and **GHCR**.
+
+#### 1) What “CD” means here
+
+**In plain terms:**  
+**CI** answers: “Did we **break** the code?” **CD** answers: “Can someone **else** (or another machine) **run the right version** of our app without copying our laptop?”
+
+**CD** is not one button. It is a **chain**:
+
+1. **Build** a **release artifact** (here: a **Docker image** — a packaged, runnable snapshot of your API or web UI).
+2. **Publish** that artifact to a **shared storage** (a **container registry**).
+3. **Deploy** (later): a server or cluster **downloads** that image and **runs** it.
+4. **Verify** (later): hit `/health` or run smoke tests in that environment.
+
+Your repo today implements steps **1–2** automatically after good CI on `main`. Steps **3–4** are the next learning steps.
+
+**Professional language:**  
+**Continuous delivery** = the pipeline produces **immutable, versioned artifacts** and makes them **available for promotion** across environments. **Continuous deployment** goes further: production updates **automatically** on every merge (you are not doing that yet).
+
+---
+
+#### 2) What a Docker **image** is (one minute)
+
+**In plain terms:**  
+A **Docker image** is a **frozen folder** of your app: OS-ish base, your code, dependencies, start command — saved as **layers** so it can be copied and run anywhere Docker runs.
+
+**Not the same as:** a **container**. The **image** is the recipe + files; a **container** is a **running instance** of that image (like “program” vs “running program”).
+
+---
+
+#### 3) What a **container registry** is
+
+**In plain terms:**  
+A registry is an **“app store” for Docker images** on the internet (with login). You **push** images after build; servers **pull** them before run.
+
+Examples you may hear:
+
+| Registry | Host | Typical use |
+|----------|------|-------------|
+| **GHCR** (GitHub Container Registry) | `ghcr.io` | Images live next to your **GitHub** repo / org; works well with **GitHub Actions**. |
+| **Docker Hub** | `docker.io` | Public images; many tutorials use it. |
+| **Amazon ECR**, **Google Artifact Registry**, **Azure ACR** | cloud-specific URLs | Production on AWS/GCP/Azure. |
+
+They all solve the same job: **store and version images**, control **who can read/write**.
+
+---
+
+#### 4) What **GHCR** is specifically
+
+**GHCR** = **GitHub Container Registry**.  
+**In plain terms:** GitHub’s own registry at **`ghcr.io`**. Your workflow logs in with **`GITHUB_TOKEN`** (GitHub gives it to Actions) and **uploads** images there — no Docker Hub account required for the basic lab path.
+
+**Image URL shape:**
+
+```text
+ghcr.io/<OWNER>/<IMAGE-NAME>:<TAG>
+```
+
+Example for this lab (owner `zubair-autometa`):
+
+- `ghcr.io/zubair-autometa/infra-stack-lab-api:latest`
+- `ghcr.io/zubair-autometa/infra-stack-lab-frontend:latest`
+
+**Tags:**
+
+- **`:latest`** — “whatever was last published from the pipeline” (moves over time).
+- **`:<full-git-sha>`** — **immutable** pointer: “exactly the bits built from that commit” (best for production and rollbacks).
+
+**Professional language:**  
+GHCR is an **OCI-compliant** registry; Kubernetes and Docker speak the same **pull** protocol.
+
+---
+
+#### 5) Why publish **after** CI (not before)
+
+**In plain terms:**  
+You only want to **advertise** images that passed tests. So the publish workflow waits until the **`CI`** workflow finishes **green** on a **`push`** to **`main`**, then builds from the **same commit SHA** CI used.
+
+**Professional language:**  
+**Artifact provenance**: consumers assume “green CI ⇒ this digest is safe to deploy.”
+
+---
+
+#### 6) How this differs from `docker compose up` on your laptop
+
+**In plain terms:**
+
+- **Compose on laptop:** builds from **your local files**; great for dev.
+- **GHCR publish:** builds in **GitHub’s cloud** and stores the result so **any machine** can `docker pull` the **same** image later (staging, prod, teammate).
+
+They complement each other; one does not replace the other.
+
+---
+
+#### 7) What you still have not automated (and that is OK)
+
+**Not automated yet:** “**Deploy** to test/prod” — starting VMs, `kubectl apply`, health checks after rollout, **human approval** for production. That is the next **CD** depth (environments + deploy workflows + later **Kubernetes**).
 
 ---
 
@@ -345,6 +448,10 @@ You move to the cluster **after** you trust your pipeline and image promotion st
 | **Test** | Executable proof that behavior matches expectations (unit/integration). |
 | **Build** | Produce runnable output (frontend bundle, backend package, Docker image). |
 | **Registry** | Storage for container images (GHCR, GCR, ECR). |
+| **GHCR** | **GitHub Container Registry** — registry at `ghcr.io`, integrated with GitHub Actions and package permissions. |
+| **CD** | **Continuous delivery** (and sometimes **deployment**) — build/publish/deploy **artifacts** in a repeatable way; often means “image lands in registry” before “kubectl apply”. |
+| **OCI** | **Open Container Initiative** — standard image format so Docker, Kubernetes, and registries interoperate. |
+| **Digest / SHA tag** | Immutable reference to an image built from a specific commit (good for prod). |
 | **Promotion** | Moving a **tested** artifact from dev → test → prod by tag or digest. |
 | **Rollback** | Deploying the **previous known-good** image/tag when something fails. |
 
@@ -358,4 +465,4 @@ You move to the cluster **after** you trust your pipeline and image promotion st
 
 ---
 
-*Last updated with the Infra Stack Lab CI workflow (`ci.yml`): lint, test, Docker build verification.*
+*Last updated: CI (`ci.yml`), optional publish to GHCR (`publish-images.yml`), and beginner CD/GHCR notes in §2.1.*
