@@ -17,7 +17,7 @@ On every push and pull request to **`main`**, [`.github/workflows/ci.yml`](.gith
 - **Frontend:** `npm ci`, ESLint, production build (`apps/frontend`)
 - **Docker:** `docker build` for `docker/backend/Dockerfile` and `docker/frontend/Dockerfile` (image build verification; no push to a registry yet — that is Phase **F1**/registry work in the roadmap).
 
-**Branch protection (Phase E2, manual in GitHub):** Settings → Branches → add a rule for `main` → require the **CI** workflow to pass before merge, and optionally require a pull request.
+**Branch protection (Phase E2, manual in GitHub):** Either **Settings → Rules → Rulesets** → **Import a ruleset** using [`.github/rulesets/main-branch-infra-stack-lab.json`](.github/rulesets/main-branch-infra-stack-lab.json), or **Settings → Branches** → classic rule for `main` → require the **CI** checks. Details: [`docs/CI-CD-CONCEPTS.md`](docs/CI-CD-CONCEPTS.md) §6 and [`.github/rulesets/README.md`](.github/rulesets/README.md).
 
 ## Documentation
 
