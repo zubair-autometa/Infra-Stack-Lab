@@ -15,7 +15,21 @@ On every push and pull request to **`main`**, [`.github/workflows/ci.yml`](.gith
 
 - **Backend:** `uv sync --frozen`, Ruff, pytest (`apps/backend`)
 - **Frontend:** `npm ci`, ESLint, production build (`apps/frontend`)
-- **Docker:** `docker build` for `docker/backend/Dockerfile` and `docker/frontend/Dockerfile` (image build verification; no push to a registry yet — that is Phase **F1**/registry work in the roadmap).
+- **Docker:** `docker build` for `docker/backend/Dockerfile` and `docker/frontend/Dockerfile` (image build verification).
+
+**Publish images (Phase F2):** After a **successful** CI run for a **push** to `main`, [`.github/workflows/publish-images.yml`](.github/workflows/publish-images.yml) builds and pushes to **GHCR**:
+
+- `ghcr.io/<your-github-username>/infra-stack-lab-api:latest` (and `:git-sha`)
+- `ghcr.io/<your-github-username>/infra-stack-lab-frontend:latest` (and `:git-sha`)
+
+Replace `<your-github-username>` with your GitHub user or org name (here: `zubair-autometa`). Pull examples:
+
+```bash
+docker pull ghcr.io/zubair-autometa/infra-stack-lab-api:latest
+docker pull ghcr.io/zubair-autometa/infra-stack-lab-frontend:latest
+```
+
+If pulls are denied, open **Packages** on GitHub → each package → **Package settings** → change visibility or grant access. See [`docs/CI-CD-CONCEPTS.md`](docs/CI-CD-CONCEPTS.md) (registry section).
 
 **Branch protection (Phase E2, manual in GitHub):** Either **Settings → Rules → Rulesets** → **Import a ruleset** using [`.github/rulesets/main-branch-infra-stack-lab.json`](.github/rulesets/main-branch-infra-stack-lab.json), or **Settings → Branches** → classic rule for `main` → require the **CI** checks. Details: [`docs/CI-CD-CONCEPTS.md`](docs/CI-CD-CONCEPTS.md) §6 and [`.github/rulesets/README.md`](.github/rulesets/README.md).
 

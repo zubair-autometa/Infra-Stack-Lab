@@ -19,7 +19,7 @@
 
 **Execution order (as requested):** front-end first → back-end → Keycloak → Docker → devops/infra/CI-CD → GCP and Kubernetes. Earlier steps stay small and testable; later steps compose them.
 
-**Where this repo is now (high level):** Phases **A–D** and remote **Git** are in place. **Phase F1** is started: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs lint, tests, and Docker image builds on `main` and PRs. **Phase E2** (protected `main` + required checks) and **F2+** (environments, image registry, deploy) are still ahead — follow the sections below.
+**Where this repo is now (high level):** Phases **A–D** and remote **Git** are in place. **Phase F1:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) on `main` and PRs. **Phase F2 (registry):** [`.github/workflows/publish-images.yml`](.github/workflows/publish-images.yml) pushes API + web images to **GHCR** after green CI on a **push** to `main`. **Phase E2** (rulesets / branch protection) you configure in GitHub. **Still ahead:** deploy to a **test** environment (F2 smoke), **live** gates (F3), **GCP + WIF** (G), **Kubernetes** (H) — follow the sections below.
 
 ---
 
