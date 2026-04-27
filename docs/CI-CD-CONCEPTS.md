@@ -17,6 +17,11 @@ Like [SYSTEM-AND-DOCKER-CONCEPTS.md](./SYSTEM-AND-DOCKER-CONCEPTS.md), each topi
 4. [How a run works end-to-end](#4-how-a-run-works-end-to-end)
 5. [What our `ci.yml` actually does](#5-what-our-ciyml-actually-does)
 6. [Quality gates: branch protection (Phase E2)](#6-quality-gates-branch-protection-phase-e2)
+   - [6.1 What you control in the browser](#61-what-you-control-in-the-browser)
+   - [6.2 Step-by-step: classic branch protection for `main`](#62-step-by-step-classic-branch-protection-for-main)
+   - [6.3 Rule profiles: this lab vs a typical team app](#63-rule-profiles-this-lab-vs-a-typical-team-app)
+   - [6.4 Required checks for this repository](#64-required-checks-for-this-repository)
+   - [6.5 Verify and common gotchas](#65-verify-and-common-gotchas)
 7. [What “strong” CI/CD usually adds next](#7-what-strong-cicd-usually-adds-next)
 8. [Relationship to Docker and “the cluster”](#8-relationship-to-docker-and-the-cluster)
 9. [Glossary](#9-glossary)
@@ -171,13 +176,97 @@ CI can run and still be ignored unless GitHub **blocks merges** when checks fail
 **Professional language:**  
 **Governance**: protected branches + required status checks enforce **definition of done** for `main`.
 
-**Manual steps (once per repo):**
+Until you turn this on, CI is **advisory**. After this, CI becomes **mandatory** for merges (for everyone you did not exempt).
 
-1. Repository **Settings → Branches → Branch protection rule** for `main`.
-2. Enable **Require status checks to pass before merging**.
-3. Select job names from your workflow (they appear after at least one successful run).
+---
 
-Until you do this, CI is **advisory**. After this, CI becomes **mandatory** for merges — closer to real teams.
+### 6.1 What you control in the browser
+
+Branch protection is **only** changed in **GitHub** (repository **Settings**, or an **organization policy** above the repo). No amount of YAML in the repo can *force* protection by itself — you (or an org admin) must enable it once.
+
+**Direct link pattern** (replace if your owner/repo differs):
+
+`https://github.com/<owner>/<repo>/settings/branches`
+
+For this lab: `https://github.com/zubair-autometa/Infra-Stack-Lab/settings/branches`
+
+---
+
+### 6.2 Step-by-step: classic branch protection for `main`
+
+These steps match the common **“Branch protection rules”** UI (wording can shift slightly as GitHub updates).
+
+1. **Open the repo on GitHub** (logged in as someone with **Admin** on the repo).
+2. Go to **Settings** (repo tabs: Code, Issues, **Settings**).
+3. In the left sidebar, click **Branches** (under “Code and automation”).
+4. Under **Branch protection rules**, click **Add branch protection rule** (or **Add rule**).
+5. **Branch name pattern:** type exactly **`main`** (unless your default branch has another name — then use that name).
+6. Enable the rules you want from the table in [§6.3](#63-rule-profiles-this-lab-vs-a-typical-team-app) (start with the **“This lab (recommended now)”** column).
+7. Under **Protect matching branches** → find **Require status checks to pass before merging**:
+   - Turn it **on**.
+   - Click **Add checks** / search box.
+   - Add the checks listed in [§6.4](#64-required-checks-for-this-repository).  
+     If a check **does not appear**, open **Actions**, confirm the latest **CI** workflow on `main` is **green**; GitHub only lists checks it has seen succeed at least once.
+8. Click **Create** or **Save changes** at the bottom of the page.
+
+**Optional — GitHub “Rulesets”:** Some accounts show **Rules → Rulesets** instead of or in addition to classic rules. Concept is the same: target branch `main`, require checks, block force-push. Use whichever UI your org standardizes on.
+
+---
+
+### 6.3 Rule profiles: this lab vs a typical team app
+
+Not every company uses the same switches. Below is what is **common** and what makes sense for **you learning** vs a **production multi-developer** app.
+
+| Rule (as labeled in GitHub UI) | This lab (recommended now) | Typical team / production app |
+|----------------------------------|----------------------------|-------------------------------|
+| **Require a pull request before merging** | **On** — you practice real flow; merge only via PR into `main`. | **On** — almost always. |
+| **Required approvals** (under PR requirements) | **0** if you are solo (PR still documents the change); **1** if two+ people. | **1–2** depending on risk (money-moving, regulated, etc.). |
+| **Dismiss stale pull request approvals when new commits are pushed** | Optional **On** once you have reviewers. | Often **On** so re-review happens after changes. |
+| **Require review from Code Owners** | Off until you add `CODEOWNERS`. | On for sensitive paths when you adopt CODEOWNERS. |
+| **Require status checks to pass before merging** | **On** — wire to **CI** jobs ([§6.4](#64-required-checks-for-this-repository)). | **On** — CI + extra checks (security, contract tests) as you grow. |
+| **Require branches to be up to date before merging** | Optional **On** — stricter; every merge rebases on latest `main`. | Often **On** on busy repos to catch integration issues. |
+| **Require conversation resolution before merging** | Optional. | Common when reviews use threads. |
+| **Require signed commits** | Off while learning (GPG/SSH signing setup). | Some orgs **On** for compliance. |
+| **Require linear history** | Optional (often paired with **Squash merge** only). | Team style choice. |
+| **Require deployments to succeed** | Off until you have **Environments** + deploy workflows. | On for gated **staging/prod** deploys. |
+| **Lock branch** | Off (would block all writes). | Rare; emergency freeze only. |
+| **Do not allow bypassing the above settings** | Your choice: **Off** = admins can merge if CI is red (escape hatch); **On** = nobody skips rules. | Production: often **On**; learning solo sometimes **Off**. |
+| **Allow force pushes** | **Off** — keeps history on `main` trustworthy. | **Off** almost always. |
+| **Allow deletions** | **Off** — prevents accidental branch delete. | **Off** for `main`. |
+
+**Reality check:** “Every application” does **not** use identical toggles — regulated finance, a mobile game, and an internal admin tool differ. The **constant** is: **default branch is protected**, **CI required**, **no force-push to main**, **changes land via PR** once more than one person touches the code.
+
+---
+
+### 6.4 Required checks for this repository
+
+Your workflow file is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Each **job** has a `name:` that becomes a **check** in the PR UI.
+
+Add **all three** as required status checks:
+
+1. **`Backend (ruff + pytest)`** — from `jobs.backend.name`
+2. **`Frontend (eslint + build)`** — from `jobs.frontend.name`
+3. **`Docker (API + UI images)`** — from `jobs.docker.name`
+
+If GitHub shows a slightly different string (for example prefixed with workflow name), pick the entries that clearly match those three jobs from the latest green **CI** run.
+
+---
+
+### 6.5 Verify and common gotchas
+
+**Verify**
+
+1. Open a **test PR** (small doc typo is fine).
+2. Confirm all three checks appear and run.
+3. Try to **merge while checks are running** — merge button should be disabled or warn until green.
+4. (Optional) Push a commit that **breaks tests** on purpose on the PR branch — merge should stay blocked until fixed.
+
+**Gotchas**
+
+- **Checks not listed** when adding rules → run **CI successfully on `main` at least once** after the workflow exists.
+- **Required check name mismatch** → open **Actions → latest run → job sidebar** and copy the exact check name GitHub shows.
+- **You bypass protection** → you may be **admin** with “allow bypass” still enabled; see table in §6.3.
+- **Pushing directly to `main`** → with “Require PR before merging” on, GitHub blocks **direct pushes** to `main`; you must use a **branch + PR** (that is intended).
 
 ---
 
