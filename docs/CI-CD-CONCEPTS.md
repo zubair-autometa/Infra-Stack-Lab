@@ -18,10 +18,11 @@ Like [SYSTEM-AND-DOCKER-CONCEPTS.md](./SYSTEM-AND-DOCKER-CONCEPTS.md), each topi
 5. [What our `ci.yml` actually does](#5-what-our-ciyml-actually-does)
 6. [Quality gates: branch protection (Phase E2)](#6-quality-gates-branch-protection-phase-e2)
    - [6.1 What you control in the browser](#61-what-you-control-in-the-browser)
-   - [6.2 Step-by-step: classic branch protection for `main`](#62-step-by-step-classic-branch-protection-for-main)
-   - [6.3 Rule profiles: this lab vs a typical team app](#63-rule-profiles-this-lab-vs-a-typical-team-app)
-   - [6.4 Required checks for this repository](#64-required-checks-for-this-repository)
-   - [6.5 Verify and common gotchas](#65-verify-and-common-gotchas)
+   - [6.2 Rulesets UI: import JSON (recommended on newer GitHub)](#62-rulesets-ui-import-json-recommended-on-newer-github)
+   - [6.3 Step-by-step: classic branch protection for `main`](#63-step-by-step-classic-branch-protection-for-main)
+   - [6.4 Rule profiles: this lab vs a typical team app](#64-rule-profiles-this-lab-vs-a-typical-team-app)
+   - [6.5 Required checks for this repository](#65-required-checks-for-this-repository)
+   - [6.6 Verify and common gotchas](#66-verify-and-common-gotchas)
 7. [What “strong” CI/CD usually adds next](#7-what-strong-cicd-usually-adds-next)
 8. [Relationship to Docker and “the cluster”](#8-relationship-to-docker-and-the-cluster)
 9. [Glossary](#9-glossary)
@@ -190,9 +191,45 @@ Branch protection is **only** changed in **GitHub** (repository **Settings**, or
 
 For this lab: `https://github.com/zubair-autometa/Infra-Stack-Lab/settings/branches`
 
+**Rulesets (newer UI):** `https://github.com/zubair-autometa/Infra-Stack-Lab/settings/rules`
+
 ---
 
-### 6.2 Step-by-step: classic branch protection for `main`
+### 6.2 Rulesets UI: import JSON (recommended on newer GitHub)
+
+You are in the right place when the URL is **`/settings/rules`** and the page title is **Rulesets**.
+
+1. Open **Settings** → **Rules** → **Rulesets** (or go straight to `https://github.com/<owner>/<repo>/settings/rules`).
+2. Click **New ruleset** → **Import a ruleset** (not “New branch ruleset” unless you prefer clicking each toggle by hand).
+3. Choose the file **[`.github/rulesets/main-branch-infra-stack-lab.json`](../.github/rulesets/main-branch-infra-stack-lab.json)** from your cloned repo (or download that file from GitHub after you pull latest `main`).
+4. GitHub opens a **preview** of the ruleset. Confirm:
+   - **Target branches** includes **`main`** (the JSON uses `refs/heads/main`).
+   - **Enforcement** is **Active** (not “Evaluate only”).
+5. Click **Create** / **Save**.
+
+**What that JSON contains (field by field):**
+
+| JSON field | Meaning |
+|------------|---------|
+| `name` | Human-readable ruleset name in the GitHub UI. |
+| `target`: `branch` | This ruleset applies to **branches**, not tags. |
+| `source_type`: `Repository` | The ruleset is owned by this repository. |
+| `enforcement`: `active` | Rules are **enforced** (not dry-run). |
+| `conditions.ref_name.include` | Which refs match — here **`refs/heads/main`** only. |
+| `rules[].type`: `deletion` | Prevents deleting the **`main`** branch without bypass permission. |
+| `rules[].type`: `non_fast_forward` | Blocks **force-push** (rewriting history) on matching refs. |
+| `rules[].type`: `pull_request` | Changes must land via **pull request** (no direct push merge to `main` in normal flow). `required_approving_review_count: 0` = solo-friendly (no reviewer required). |
+| `rules[].type`: `required_status_checks` | Lists **status check contexts** that must be green before the branch can move forward (here: your three CI jobs). |
+| `parameters.do_not_enforce_on_create` | When `true`, avoids edge cases when the branch is first created. |
+| `parameters.strict_required_status_checks_policy` | `false` = **loose**: PR does not have to merge latest `main` before merge (fewer rebuilds). Set `true` for **strict** “up to date before merge”. |
+
+More detail and troubleshooting: **[`.github/rulesets/README.md`](../.github/rulesets/README.md)**.
+
+If import fails with a validation error, use **New branch ruleset** and mirror the same ideas manually, or compare your check names to a green **Actions** run ([§6.5](#65-required-checks-for-this-repository)).
+
+---
+
+### 6.3 Step-by-step: classic branch protection for `main`
 
 These steps match the common **“Branch protection rules”** UI (wording can shift slightly as GitHub updates).
 
@@ -201,19 +238,17 @@ These steps match the common **“Branch protection rules”** UI (wording can s
 3. In the left sidebar, click **Branches** (under “Code and automation”).
 4. Under **Branch protection rules**, click **Add branch protection rule** (or **Add rule**).
 5. **Branch name pattern:** type exactly **`main`** (unless your default branch has another name — then use that name).
-6. Enable the rules you want from the table in [§6.3](#63-rule-profiles-this-lab-vs-a-typical-team-app) (start with the **“This lab (recommended now)”** column).
+6. Enable the rules you want from the table in [§6.4](#64-rule-profiles-this-lab-vs-a-typical-team-app) (start with the **“This lab (recommended now)”** column).
 7. Under **Protect matching branches** → find **Require status checks to pass before merging**:
    - Turn it **on**.
    - Click **Add checks** / search box.
-   - Add the checks listed in [§6.4](#64-required-checks-for-this-repository).  
+   - Add the checks listed in [§6.5](#65-required-checks-for-this-repository).  
      If a check **does not appear**, open **Actions**, confirm the latest **CI** workflow on `main` is **green**; GitHub only lists checks it has seen succeed at least once.
 8. Click **Create** or **Save changes** at the bottom of the page.
 
-**Optional — GitHub “Rulesets”:** Some accounts show **Rules → Rulesets** instead of or in addition to classic rules. Concept is the same: target branch `main`, require checks, block force-push. Use whichever UI your org standardizes on.
-
 ---
 
-### 6.3 Rule profiles: this lab vs a typical team app
+### 6.4 Rule profiles: this lab vs a typical team app
 
 Not every company uses the same switches. Below is what is **common** and what makes sense for **you learning** vs a **production multi-developer** app.
 
@@ -223,7 +258,7 @@ Not every company uses the same switches. Below is what is **common** and what m
 | **Required approvals** (under PR requirements) | **0** if you are solo (PR still documents the change); **1** if two+ people. | **1–2** depending on risk (money-moving, regulated, etc.). |
 | **Dismiss stale pull request approvals when new commits are pushed** | Optional **On** once you have reviewers. | Often **On** so re-review happens after changes. |
 | **Require review from Code Owners** | Off until you add `CODEOWNERS`. | On for sensitive paths when you adopt CODEOWNERS. |
-| **Require status checks to pass before merging** | **On** — wire to **CI** jobs ([§6.4](#64-required-checks-for-this-repository)). | **On** — CI + extra checks (security, contract tests) as you grow. |
+| **Require status checks to pass before merging** | **On** — wire to **CI** jobs ([§6.5](#65-required-checks-for-this-repository)). | **On** — CI + extra checks (security, contract tests) as you grow. |
 | **Require branches to be up to date before merging** | Optional **On** — stricter; every merge rebases on latest `main`. | Often **On** on busy repos to catch integration issues. |
 | **Require conversation resolution before merging** | Optional. | Common when reviews use threads. |
 | **Require signed commits** | Off while learning (GPG/SSH signing setup). | Some orgs **On** for compliance. |
@@ -238,7 +273,7 @@ Not every company uses the same switches. Below is what is **common** and what m
 
 ---
 
-### 6.4 Required checks for this repository
+### 6.5 Required checks for this repository
 
 Your workflow file is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Each **job** has a `name:` that becomes a **check** in the PR UI.
 
@@ -252,7 +287,7 @@ If GitHub shows a slightly different string (for example prefixed with workflow 
 
 ---
 
-### 6.5 Verify and common gotchas
+### 6.6 Verify and common gotchas
 
 **Verify**
 
@@ -265,7 +300,7 @@ If GitHub shows a slightly different string (for example prefixed with workflow 
 
 - **Checks not listed** when adding rules → run **CI successfully on `main` at least once** after the workflow exists.
 - **Required check name mismatch** → open **Actions → latest run → job sidebar** and copy the exact check name GitHub shows.
-- **You bypass protection** → you may be **admin** with “allow bypass” still enabled; see table in §6.3.
+- **You bypass protection** → you may be **admin** with “allow bypass” still enabled; see table in §6.4.
 - **Pushing directly to `main`** → with “Require PR before merging” on, GitHub blocks **direct pushes** to `main`; you must use a **branch + PR** (that is intended).
 
 ---
