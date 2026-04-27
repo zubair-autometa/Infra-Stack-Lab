@@ -151,6 +151,8 @@
 
 **Handbook focus:** 05 (workflows, environments, OIDC, promotion), 03 (scan images), 10 (CI is not security forever)
 
+**Concepts in this repo:** Read **[docs/CI-CD-CONCEPTS.md](docs/CI-CD-CONCEPTS.md)** for CI vs CD, workflow/job/step/runner vocabulary, what `ci.yml` does, branch protection, and how pipeline work connects to Docker and cluster deploys later.
+
 ### Step F1 — CI: lint, test, build images on every PR
 
 - **Do:** Workflow jobs for front-end, back-end, optional Terraform `fmt`/`validate` if present. Tag images with `git sha`.

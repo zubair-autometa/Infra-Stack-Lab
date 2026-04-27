@@ -21,6 +21,7 @@ On every push and pull request to **`main`**, [`.github/workflows/ci.yml`](.gith
 
 ## Documentation
 
+- **[CI/CD concepts](docs/CI-CD-CONCEPTS.md)** — CI vs CD, GitHub Actions vocabulary (workflow, job, runner), what `.github/workflows/ci.yml` does, branch protection, and how this connects to Docker and Kubernetes later.
 - **[System + Docker Compose concepts](docs/SYSTEM-AND-DOCKER-CONCEPTS.md)** — roles of each service, CORS vs auth, `env_file` vs build args, volumes, healthchecks, and a senior checklist for reading this repo.
 - **[Keycloak realm layout](docs/KEYCLOAK-LAYOUT.md)** — `master` confidential client vs application realm for users (your model vs what the repo imports).
 - **[Codebase conventions](docs/CODEBASE-CONVENTIONS.md)** — folder layout and naming.
